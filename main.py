@@ -278,3 +278,4 @@ async def payment_dashboard():
         
         <div class="balance-box">
             <span id="balance-text">الرصيد الحالي في المحفظة: </span>
+            return
