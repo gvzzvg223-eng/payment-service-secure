@@ -1,3 +1,4 @@
+uvicorn main:app --reload
 import os
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
