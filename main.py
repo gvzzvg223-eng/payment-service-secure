@@ -1,5 +1,5 @@
-import os
-from fastapi import FastAPI, Depends, HTTPException, Security
+            import os
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.security.api_key import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -47,7 +47,7 @@ app.add_middleware(
 def on_startup():
     create_db_and_tables()
 
-# 4. واجهة المستخدم (الوضع الداكن، اللغتين، وزر الشحن بـ 1000$)
+# 4. واجهة المستخدم (تثبيت الوضع الداكن المريح وإصلاح الأزرار)
 @app.get("/", response_class=HTMLResponse)
 async def payment_dashboard():
     html_content = """
@@ -58,48 +58,77 @@ async def payment_dashboard():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>خدمة الدفع الآمنة | Secure Payment Service</title>
         <style>
-            body {
-                background-color: #121212;
-                color: #ffffff;
+            /* تثبيت الخلفية الداكنة المريحة للعين لمنع اللون الأبيض */
+            html, body {
+                background-color: #121212 !important;
+                color: #ffffff !important;
                 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                text-align: center;
-                padding: 50px;
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            body {
                 direction: rtl;
             }
             .container {
-                max-width: 600px;
-                margin: auto;
+                width: 90%;
+                max-width: 450px;
                 background: #1e1e1e;
-                padding: 30px;
-                border-radius: 12px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                padding: 40px 20px;
+                border-radius: 16px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+                text-align: center;
+                box-sizing: border-box;
+            }
+            h1 {
+                font-size: 24px;
+                margin-bottom: 10px;
+                color: #ffffff;
+            }
+            p {
+                font-size: 16px;
+                color: #b3b3b3;
+                margin-bottom: 30px;
+                line-height: 1.6;
             }
             .btn-charge {
-                background-color: #27ae60;
+                background-color: #2da44e;
                 color: white;
                 border: none;
-                padding: 15px 30px;
+                padding: 16px 32px;
                 font-size: 18px;
                 border-radius: 8px;
                 cursor: pointer;
                 font-weight: bold;
-                transition: 0.3s;
-                margin-top: 20px;
+                transition: background-color 0.2s;
+                width: 100%;
+                box-sizing: border-box;
             }
-            .btn-charge:hover { background-color: #2ecc71; }
+            .btn-charge:hover { 
+                background-color: #2c974b; 
+            }
             .lang-switch {
-                margin-bottom: 20px;
+                margin-bottom: 25px;
                 cursor: pointer;
-                color: #3498db;
+                color: #58a6ff;
+                font-size: 14px;
+                font-weight: 500;
+                text-decoration: none;
+                display: inline-block;
+            }
+            .lang-switch:hover {
                 text-decoration: underline;
             }
         </style>
         <script>
             function switchLanguage() {
-                const title = document.getElementById("title");
-                const desc = document.getElementById("desc");
-                const btn = document.getElementById("btn");
-                const currentLang = document.documentElement.lang;
+                var title = document.getElementById("title");
+                var desc = document.getElementById("desc");
+                var btn = document.getElementById("btn");
+                var currentLang = document.documentElement.lang;
 
                 if (currentLang === "ar") {
                     document.documentElement.lang = "en";
@@ -115,7 +144,8 @@ async def payment_dashboard():
                     btn.innerText = "شحن الحساب بـ 1000$";
                 }
             }
-            async def chargeBalance() {
+
+            function chargeBalance() {
                 alert("تم إرسال طلب الشحن بنجاح! تم إضافة $1000 لمحفظتك الافتراضية.");
             }
         </script>
