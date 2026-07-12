@@ -3,6 +3,8 @@ import os
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 app = FastAPI(
     title="PaymentService_Global", 
@@ -18,6 +20,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ✅ تحسين: إضافة مسار للتحقق من صحة الخدمة (Health Check)
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "service": "PaymentService_Global", "version": "3.0"}
 
 @app.get("/", response_class=HTMLResponse)
 async def payment_dashboard():
@@ -143,7 +150,7 @@ async def payment_dashboard():
                     sec2: "💰 رخصة الاستخدام التجاري",
                     p_desc: "احصل على صلاحية الربط الكاملة لموقعك أو متجرك الحقيقي.",
                     p_btn: "اشترك تلقائياً (5$ / شهرياً)",
-                    alert_charge: "تمت محاكاة العملية بنجاح! تم إنشاء مفتاح تشفير مالي وإضافة $1000 للحساب التجريبي.",
+                    alert_charge: "تمت محاكاة العملية بنجاح! تم إنشاء مفتاح تشفير مالي وإضافة \$1000 للحساب التجريبي.",
                     alert_sub: "نظام ذكي: سيتم توجيهك الآن إلى بوابة الدفع الآمنة لاستلام اشتراكك وتفعيل حسابك تلقائياً دون تدخل بشري!"
                 },
                 en: {
@@ -151,11 +158,11 @@ async def payment_dashboard():
                     title: "Global Secure Payment Engine",
                     desc: "Automated backend tools for developers and stores worldwide.",
                     sec1: "⚡ Free Sandbox Test",
-                    btn: "Simulate $1000 Wallet Charge",
+                    btn: "Simulate \$1000 Wallet Charge",
                     sec2: "💰 Commercial Licensing",
                     p_desc: "Get full API access for your commercial website or app.",
-                    p_btn: "Subscribe Automatically ($5/mo)",
-                    alert_charge: "Simulation successful! Financial crypto-key generated and $1000 added to demo account.",
+                    p_btn: "Subscribe Automatically (\$5/mo)",
+                    alert_charge: "Simulation successful! Financial crypto-key generated and \$1000 added to demo account.",
                     alert_sub: "Smart System: Redirecting to secure portal to activate your subscription automatically!"
                 },
                 es: {
@@ -163,11 +170,11 @@ async def payment_dashboard():
                     title: "Pasarela de Pago Segura Global",
                     desc: "Herramientas automatizadas para desarrolladores y tiendas del mundo.",
                     sec1: "⚡ Prueba Gratuita de Sandbox",
-                    btn: "Simular Carga de Billetera de $1000",
+                    btn: "Simular Carga de Billetera de \$1000",
                     sec2: "💰 Licencia Comercial",
                     p_desc: "Obtenga acceso completo a la API para su sitio web comercial.",
-                    p_btn: "Suscribirse Automáticamente ($5/mes)",
-                    alert_charge: "¡Simulación exitosa! Llave criptográfica generada y $1000 añadidos.",
+                    p_btn: "Suscribirse Automáticamente (\$5/mes)",
+                    alert_charge: "¡Simulación exitosa! Llave criptográfica generada y \$1000 añadidos.",
                     alert_sub: "Sistema Inteligente: ¡Redirigiendo para activar su suscripción automáticamente!"
                 },
                 fr: {
@@ -230,3 +237,11 @@ async def payment_dashboard():
             <div class="premium-box">
                 <div class="section-title" id="sec2" style="margin-top:0; color:#ff7b72;">💰 رخصة الاستخدام التجاري</div>
                 <p id="p_desc" style="margin-bottom:10px; font-size:13px;">احصل على صلاحية الربط الكاملة لموقعك أو متجرك الحقيقي.</p>
+                <div class="price-tag">\$5 <span style="font-size:14px; color:#8b949e;">/ شهرياً</span></div>
+                <button id="p_btn" class="btn-subscribe" onclick="triggerSubscription()">اشترك تلقائياً (5$ / شهرياً)</button>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
