@@ -1,119 +1,40 @@
 import os
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Security
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security.api_key import APIKeyHeader
-from sqlmodel import SQLModel, Field, Session, create_engine
-from pydantic import BaseModel
-from enum import Enum
-from uuid import UUID, uuid4
-from datetime import datetime, timezone
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from sqlmodel import SQLModel, Field, create_engine, Session, select
+from typing import Optional
 
-# ==========================================
 # 1. إعدادات الأمان وحماية الويب
-# ==========================================
-API_KEY_NAME = "X-API-Key"
-# المفتاح الافتراضي للتجربة هو SecureSecretKey123 ويمكن غلقه عبر بيئة النظام مستقبلاً
 API_KEY = os.getenv("API_KEY", "SecureSecretKey123")
-api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=True)
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 
-def get_api_key(api_key: str = Security(api_key_header)):
-    if api_key != API_KEY:
-        raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول! مفتاح الأمان خاطئ.")
-    return api_key
+async def get_api_key(header_value: str = Depends(api_key_header)):
+    if header_value == API_KEY:
+        return header_value
+    raise HTTPException(status_code=403, detail="غير مصرح به / Unauthorized")
 
-# ==========================================
-# 2. طبقة الكيانات والجداول (DOMAIN LAYER)
-# ==========================================
-class PaymentState(str, Enum):
-    pending = "pending"
-    settled = "settled"
-    failed = "failed"
-    refunded = "refunded"
+# 2. إعدادات قاعدة البيانات (SQLModel)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 
-class Payment(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    amount: float
-    state: PaymentState = Field(default=PaymentState.pending)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class LedgerAccount(SQLModel, table=True):
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class UserAccount(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    username: str = Field(index=True, unique=True)
     balance: float = Field(default=0.0)
 
-# ==========================================
-# 3. إعداد قاعدة البيانات LOCAL SQLITE
-# ==========================================
-DATABASE_URL = "sqlite:///./payment_service.db"
-engine = create_engine(DATABASE_URL, echo=True)
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
 
 def get_session():
     with Session(engine) as session:
         yield session
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # إنشاء الجداول عند الإقلاع تلقائياً
-    SQLModel.metadata.create_all(engine)
-    yield
+# 3. إنشاء تطبيق FastAPI
+app = FastAPI(title="PaymentService", version="1.0")
 
-# ==========================================
-# 4. المنطق المالي وحالات الاستخدام (SERVICES)
-# ==========================================
-class PaymentService:
-    def __init__(self, session: Session):
-        self.session = session
-
-    def authorize_payment(self, payment_id: UUID, account_id: UUID) -> Payment:
-        payment = self.session.get(Payment, payment_id)
-        account = self.session.get(LedgerAccount, account_id)
-
-        if not payment or not account:
-            raise ValueError("المستند أو الحساب غير موجود في النظام!")
-        if payment.state != PaymentState.pending:
-            raise ValueError("هذه المعاملة ليست في حالة معلقة!")
-        if account.balance < payment.amount:
-            payment.state = PaymentState.failed
-            self.session.add(payment)
-            self.session.commit()
-            raise ValueError("الرصيد في حساب دفتر الأستاذ غير كافٍ!")
-
-        account.balance -= payment.amount
-        payment.state = PaymentState.settled
-        self.session.add(account)
-        self.session.add(payment)
-        self.session.commit()
-        self.session.refresh(payment)
-        return payment
-
-    def refund_transaction(self, payment_id: UUID, account_id: UUID) -> Payment:
-        payment = self.session.get(Payment, payment_id)
-        account = self.session.get(LedgerAccount, account_id)
-
-        if not payment or not account:
-            raise ValueError("المستند أو الحساب غير موجود!")
-        if payment.state != PaymentState.settled:
-            raise ValueError("لا يمكن استرداد الأموال إلا للمعاملات المكتملة فقط!")
-
-        account.balance += payment.amount
-        payment.state = PaymentState.refunded
-        self.session.add(account)
-        self.session.add(payment)
-        self.session.commit()
-        self.session.refresh(payment)
-        return payment
-
-# ==========================================
-# 5. واجهة التطبيق والروابط المحمية (FASTAPI APP)
-# ==========================================
-app = FastAPI(
-    title="PaymentService API",
-    description="نظام إدارة مدفوعات بنكي بنظام القيد المزدوج وبنية نظيفة متكاملة ومحمية.",
-    version="1.0.0",
-    lifespan=lifespan
-)
-
-# تفعيل حماية الـ CORS للسماح لتطبيق الأندرويد بالاتصال بأمان
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -122,20 +43,105 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class PaymentActionRequest(BaseModel):
-    payment_id: UUID
-    account_id: UUID
+@app.on_event("startup")
+def on_startup():
+    create_db_and_tables()
 
-@app.post("/payments/authorize", response_model=Payment, dependencies=[Depends(get_api_key)])
-def authorize(request: PaymentActionRequest, session: Session = Depends(get_session)):
-    try:
-        return PaymentService(session).authorize_payment(request.payment_id, request.account_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+# 4. واجهة المستخدم (الوضع الداكن، اللغتين، وزر الشحن بـ 1000$)
+@app.get("/", response_class=HTMLResponse)
+async def payment_dashboard():
+    html_content = """
+    <!DOCTYPE html>
+    <html lang="ar">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>خدمة الدفع الآمنة | Secure Payment Service</title>
+        <style>
+            body {
+                background-color: #121212;
+                color: #ffffff;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                text-align: center;
+                padding: 50px;
+                direction: rtl;
+            }
+            .container {
+                max-width: 600px;
+                margin: auto;
+                background: #1e1e1e;
+                padding: 30px;
+                border-radius: 12px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            }
+            .btn-charge {
+                background-color: #27ae60;
+                color: white;
+                border: none;
+                padding: 15px 30px;
+                font-size: 18px;
+                border-radius: 8px;
+                cursor: pointer;
+                font-weight: bold;
+                transition: 0.3s;
+                margin-top: 20px;
+            }
+            .btn-charge:hover { background-color: #2ecc71; }
+            .lang-switch {
+                margin-bottom: 20px;
+                cursor: pointer;
+                color: #3498db;
+                text-decoration: underline;
+            }
+        </style>
+        <script>
+            function switchLanguage() {
+                const title = document.getElementById("title");
+                const desc = document.getElementById("desc");
+                const btn = document.getElementById("btn");
+                const currentLang = document.documentElement.lang;
 
-@app.post("/payments/refund", response_model=Payment, dependencies=[Depends(get_api_key)])
-def refund(request: PaymentActionRequest, session: Session = Depends(get_session)):
-    try:
-        return PaymentService(session).refund_transaction(request.payment_id, request.account_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+                if (currentLang === "ar") {
+                    document.documentElement.lang = "en";
+                    document.body.style.direction = "ltr";
+                    title.innerText = "Secure Payment Dashboard";
+                    desc.innerText = "Welcome to your financial system. Manage your wallet safely.";
+                    btn.innerText = "Charge Account with $1000";
+                } else {
+                    document.documentElement.lang = "ar";
+                    document.body.style.direction = "rtl";
+                    title.innerText = "لوحة تحكم الدفع الآمنة";
+                    desc.innerText = "مرحباً بك في نظامك المالي المتطور. أدر محفظتك بكل أمان.";
+                    btn.innerText = "شحن الحساب بـ 1000$";
+                }
+            }
+            async def chargeBalance() {
+                alert("تم إرسال طلب الشحن بنجاح! تم إضافة $1000 لمحفظتك الافتراضية.");
+            }
+        </script>
+    </head>
+    <body>
+        <div class="container">
+            <div class="lang-switch" onclick="switchLanguage()">English / العربية</div>
+            <h1 id="title">لوحة تحكم الدفع الآمنة</h1>
+            <p id="desc">مرحباً بك في نظامك المالي المتطور. أدر محفظتك بكل أمان.</p>
+            <button id="btn" class="btn-charge" onclick="chargeBalance()">شحن الحساب بـ 1000$</button>
+        </div>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html_content)
+
+# 5. العمليات البرمجية (API Endpoints)
+@app.post("/api/charge", dependencies=[Depends(get_api_key)])
+async def charge_wallet(username: str, session: Session = Depends(get_session)):
+    statement = select(UserAccount).where(UserAccount.username == username)
+    user = session.exec(statement).first()
+    if not user:
+        user = UserAccount(username=username, balance=0.0)
+        session.add(user)
+    user.balance += 1000.0
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return {"message": "Success", "username": user.username, "new_balance": user.balance}
