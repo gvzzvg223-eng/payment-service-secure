@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="PaymentService_Global", 
+    title="PaymentService_Global",
     version="4.0",
     docs_url="/dev-testing",
     redoc_url=None,
@@ -62,7 +62,7 @@ async def charge_wallet():
         wallet = session.get(Wallet, 1)
         if not wallet:
             raise HTTPException(status_code=404, detail="المحفظة غير موجودة")
-        
+
         wallet.balance += 1000.0
         session.add(wallet)
         session.commit()
@@ -196,8 +196,8 @@ async def payment_dashboard():
                 btn: "شحن محفظة افتراضية بـ 1000$",
                 sec2: "💰 رخصة الاستخدام التجاري",
                 p_desc: "احصل على صلاحية الربط الكاملة لموقعك أو متجرك الحقيقي.",
-                p_price: "$5 / شهرياً",
-                p_btn: "اشترك تلقائياً ($5 / شهرياً)",
+                p_price: "\$5 / شهرياً",
+                p_btn: "اشترك تلقائياً (\$5 / شهرياً)",
                 alert_charge: "جاري الشحن وحفظ البيانات في قاعدة البيانات...",
                 alert_sub: "سيتم توجيهك الآن إلى بوابة الدفع الآمنة لتفعيل حسابك تلقائياً!"
             },
@@ -207,11 +207,11 @@ async def payment_dashboard():
                 desc: "Automated backend tools for developers and stores worldwide.",
                 balance_lbl: "Current Wallet Balance: ",
                 sec1: "⚡ Free Sandbox Test",
-                btn: "Simulate $1000 Wallet Charge",
+                btn: "Simulate \$1000 Wallet Charge",
                 sec2: "💰 Commercial Licensing",
                 p_desc: "Get full API access for your commercial website or app.",
-                p_price: "$5 / Monthly",
-                p_btn: "Subscribe Automatically ($5 / mo)",
+                p_price: "\$5 / Monthly",
+                p_btn: "Subscribe Automatically (\$5 / mo)",
                 alert_charge: "Charging and saving data to database...",
                 alert_sub: "Smart System: Redirecting to secure portal to activate your subscription!"
             }
@@ -219,7 +219,6 @@ async def payment_dashboard():
 
         let currentLang = "ar";
 
-        // تم إصلاح الخطأ هنا وتعديل الصياغة لتصبح متوافقة مع الـ JavaScript
         async function updateBalanceDisplay() {
             try {
                 let response = await fetch('/api/wallet');
@@ -275,6 +274,22 @@ async def payment_dashboard():
         </div>
         <h1 id="main-title">بوابة الدفع العالمية الآمنة</h1>
         <p id="main-desc">أدوات برمجية مؤتمتة بالكامل للمطورين وأصحاب المتاجر حول العالم.</p>
-        
+
         <div class="balance-box">
             <span id="balance-text">الرصيد الحالي في المحفظة: </span>
+            <span id="wallet-amount" class="balance-amount">\$0.0</span>
+        </div>
+
+        <div class="section-title" id="sec1-title">⚡ فحص تجريبي مجاني</div>
+        <button class="btn-charge" id="btn-charge" onclick="handleCharge()">شحن محفظة افتراضية بـ 1000$</button>
+
+        <div class="premium-box">
+            <div class="section-title" id="sec2-title">💰 رخصة الاستخدام التجاري</div>
+            <p id="premium-desc">احصل على صلاحية الربط الكاملة لموقعك أو متجرك الحقيقي.</p>
+            <div class="price-tag" id="price-tag">\$5 / شهرياً</div>
+            <button class="btn-subscribe" id="btn-subscribe" onclick="handleSubscribe()">اشترك تلقائياً (\$5 / شهرياً)</button>
+        </div>
+    </div>
+</body>
+</html>"""
+    return HTMLResponse(content=html_content)
